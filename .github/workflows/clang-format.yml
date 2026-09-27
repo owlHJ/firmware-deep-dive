@@ -1,0 +1,46 @@
+name: C/C++ format
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned formatter
+        run: python -m pip install clang-format==22.1.4
+      - name: Check C/C++ formatting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          extensions = {'.c', '.h', '.cpp', '.hpp'}
+          files = sorted(
+              str(path)
+              for track in Path('.').iterdir()
+              if track.is_dir() and len(track.name) >= 3
+              and track.name[:2].isdigit() and track.name[2] == '_'
+              for path in track.rglob('*')
+              if path.is_file() and path.suffix in extensions
+              and 'build' not in path.parts
+          )
+          if not files:
+              print('No C/C++ sources in numbered tracks yet.')
+              raise SystemExit(0)
+          print('Checking:', *files, sep='\n  ')
+          subprocess.run(
+              ['clang-format', '--dry-run', '--Werror', '--style=file', *files],
+              check=True,
+          )
+          PY
